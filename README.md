@@ -1,6 +1,6 @@
 <div align="center">
   <br />
-  <img src="./kora.svg" alt="Kora" width="140" />
+  <img src="https://github.com/solana-foundation/kora/blob/main/kora.svg" alt="Kora" width="140" />
   <br />
   <br />
   
@@ -19,7 +19,7 @@
   <br />
 </div>
 
-> **Branch Update (Jan 6, 2025):** We migrated pre-release features to [`release/2.2.0`](https://github.com/solana-foundation/kora/tree/release/2.2.0). The `main` branch now only contains audited releases plus minor hotfixes/docs. See [v2.0.1](https://github.com/solana-foundation/kora/releases/tag/v2.0.1) for the latest stable release.
+> **Branch Update (Jan 6, 2025):** We migrated pre-release features to [`release/2.2.0`](https://github.com/solana-foundation/kora/tree/release/2.2.0). The `main` branch now only contains audited releases plus minor hotfixes/docs. See [v2.0.3](https://github.com/solana-foundation/kora/releases/tag/v2.0.3) for the latest stable release.
 
 **Kora is your Solana signing infrastructure.** Enable gasless transactions where users pay fees in any token—USDC, BONK, or your app's native token—or handle any transaction signing that requires a trusted signer.
 
@@ -160,6 +160,7 @@ Kora has been audited by [Runtime Verification](https://runtimeverification.com/
 
 - **Questions?** Ask on [Solana Stack Exchange](https://solana.stackexchange.com/) (use the `kora` tag)
 - **Issues?** Report on [GitHub Issues](https://github.com/solana-foundation/kora/issues)
+- **Operators:** Running Kora in production? Reach out to [@a_milz](https://x.com/a_milz) or [@dev_jodee](https://x.com/dev_jodee) on X to join our operator Slack channel for updates and support
 
 ## Other Resources
 

@@ -347,6 +347,17 @@ impl ConfigValidator {
             warnings.push("Using Mock price source - not suitable for production".to_string());
         }
 
+        if config.validation.allow_durable_transactions {
+            warnings.push(
+                "⚠️  SECURITY: allow_durable_transactions is enabled. \
+                Risk: Users can hold signed transactions indefinitely and execute them much later. \
+                Token values may change, your fee payer may run low on funds, or you may no longer \
+                want to subsidize these transactions. \
+                Consider disabling durable transactions unless specifically required."
+                    .to_string(),
+            );
+        }
+
         // Validate allowed programs (warn if empty or missing system/token programs)
         if config.validation.allowed_programs.is_empty() {
             warnings.push(
@@ -698,6 +709,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig::default(),
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             kora: KoraConfig::default(),
             metrics: MetricsConfig::default(),
@@ -739,6 +751,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig::default(),
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             kora: KoraConfig::default(),
             metrics: MetricsConfig::default(),
@@ -775,6 +788,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             kora: KoraConfig {
                 rate_limit: 0, // Should warn
@@ -834,6 +848,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             kora: KoraConfig::default(),
             metrics: MetricsConfig::default(),
@@ -873,6 +888,7 @@ mod tests {
                     model: PriceModel::Margin { margin: -0.1 }, // Error - negative margin
                 },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -917,6 +933,7 @@ mod tests {
                     },
                 },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -958,6 +975,7 @@ mod tests {
                     },
                 },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1007,6 +1025,7 @@ mod tests {
                     },
                 },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1042,6 +1061,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Margin { margin: 0.1 } },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1081,6 +1101,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Margin { margin: 0.1 } },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1119,6 +1140,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1150,6 +1172,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1170,6 +1193,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1232,6 +1256,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1264,6 +1289,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1295,6 +1321,7 @@ mod tests {
                 fee_payer_policy: FeePayerPolicy::default(),
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1332,6 +1359,7 @@ mod tests {
                         vec!["memo_transfer".to_string(), "cpi_guard".to_string()];
                     config
                 },
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1366,6 +1394,7 @@ mod tests {
                     config.blocked_mint_extensions = vec!["invalid_mint_extension".to_string()];
                     config
                 },
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1404,6 +1433,7 @@ mod tests {
                         vec!["invalid_account_extension".to_string()];
                     config
                 },
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1526,6 +1556,7 @@ mod tests {
                 },
                 price: PriceConfig { model: PriceModel::Free },
                 token_2022: Token2022Config::default(),
+                allow_durable_transactions: false,
             },
             metrics: MetricsConfig::default(),
             kora: KoraConfig::default(),
@@ -1764,5 +1795,78 @@ mod tests {
 
         assert_eq!(warnings.len(), 1);
         assert!(warnings.iter().any(|w| w.contains("MintCloseAuthority extension")));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_durable_transactions_warning_when_enabled() {
+        let config = Config {
+            validation: ValidationConfig {
+                max_allowed_lamports: 1_000_000,
+                max_signatures: 10,
+                allowed_programs: vec![
+                    SYSTEM_PROGRAM_ID.to_string(),
+                    SPL_TOKEN_PROGRAM_ID.to_string(),
+                ],
+                allowed_tokens: vec!["4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU".to_string()],
+                allowed_spl_paid_tokens: SplTokenConfig::Allowlist(vec![
+                    "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU".to_string(),
+                ]),
+                disallowed_accounts: vec![],
+                price_source: PriceSource::Jupiter,
+                fee_payer_policy: FeePayerPolicy::default(),
+                price: PriceConfig::default(),
+                token_2022: Token2022Config::default(),
+                allow_durable_transactions: true, // Enabled - should warn
+            },
+            kora: KoraConfig::default(),
+            metrics: MetricsConfig::default(),
+        };
+
+        let _ = update_config(config);
+
+        let rpc_client = RpcMockBuilder::new().build();
+        let result = ConfigValidator::validate_with_result(&rpc_client, true).await;
+        assert!(result.is_ok());
+        let warnings = result.unwrap();
+
+        assert!(warnings.iter().any(|w| w.contains("allow_durable_transactions is enabled")));
+        assert!(warnings.iter().any(|w| w.contains("hold signed transactions indefinitely")));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_durable_transactions_no_warning_when_disabled() {
+        let config = Config {
+            validation: ValidationConfig {
+                max_allowed_lamports: 1_000_000,
+                max_signatures: 10,
+                allowed_programs: vec![
+                    SYSTEM_PROGRAM_ID.to_string(),
+                    SPL_TOKEN_PROGRAM_ID.to_string(),
+                ],
+                allowed_tokens: vec!["4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU".to_string()],
+                allowed_spl_paid_tokens: SplTokenConfig::Allowlist(vec![
+                    "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU".to_string(),
+                ]),
+                disallowed_accounts: vec![],
+                price_source: PriceSource::Jupiter,
+                fee_payer_policy: FeePayerPolicy::default(),
+                price: PriceConfig::default(),
+                token_2022: Token2022Config::default(),
+                allow_durable_transactions: false, // Disabled - should not warn
+            },
+            kora: KoraConfig::default(),
+            metrics: MetricsConfig::default(),
+        };
+
+        let _ = update_config(config);
+
+        let rpc_client = RpcMockBuilder::new().build();
+        let result = ConfigValidator::validate_with_result(&rpc_client, true).await;
+        assert!(result.is_ok());
+        let warnings = result.unwrap();
+
+        assert!(!warnings.iter().any(|w| w.contains("allow_durable_transactions")));
     }
 }

@@ -1,12 +1,10 @@
 ## 2.1.0-beta.0 - 2026-01-05
 
-
 ### Features
 
 - add prerelease detection for Rust and TypeScript SDK workflows
 
 ## ts-sdk-v0.1.1 - 2026-01-05
-
 
 ### Bug Fixes
 
@@ -18,20 +16,29 @@
 
 - sign if create ata ix found (#267)
 
-
 ### Documentation
 
 - update x402 guide to x402 v2 spec (#272)
 
 - add deploy sample & cleanup (#265)
 
-
 ### Refactoring
 
 - limit access to config's singleton (#263)
 
-## 2.0.1 - 2025-11-24
+## 2.0.3 - 2026-01-21
 
+### Hotfix
+
+- (PRO-747) Improved Durable Nonce handling & security (#303)
+
+## 2.0.2 - 2026-01-12
+
+### Hotfix
+
+- (PRO-639) Fix big transaction causing error when using v0 transaction (#297)
+
+## 2.0.1 - 2025-11-24
 
 ### Bug Fixes
 
@@ -65,14 +72,13 @@
 
 - Add Quick Start Guide for Local Development Setup (#96)
 
-
 ### Features
 
 - (PRO-262) Implement usage limit feature with Redis support (#215)
 
 - (PRO-263) Add transfer hook example and related infrastructure (#213)
 
-- (PRO-268)  Enhance fee estimation with transfer fee calculation… (#212)
+- (PRO-268) Enhance fee estimation with transfer fee calculation… (#212)
 
 - (PRO-261) add signature verification flag to transaction methods (#208)
 
@@ -134,7 +140,6 @@
 
 - add openapi (#22)
 
-
 ### Refactoring
 
 - Enhance margin and token value calculations with overflow p… (#252)
@@ -146,4 +151,3 @@
 - remove net-ts SDK and related scripts (#145)
 
 - CI workflows and add reusable GitHub Actions
-
