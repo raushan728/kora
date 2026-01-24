@@ -19,7 +19,9 @@ pub struct SignerPoolSettings {
     #[serde(default = "default_strategy")]
     pub strategy: SelectionStrategy,
 
-    /// Whether to enable failover if the selected signer is unhealthy
+    /// When true, the pool will attempt failover to alternative signers on errors.
+    /// When false, the pool will NOT attempt retries/failover; callers should see a single
+    /// signer failure as fatal (no transparent failover).
     #[serde(default)]
     pub failover_enabled: bool,
 }

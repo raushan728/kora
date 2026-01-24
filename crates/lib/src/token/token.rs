@@ -4,9 +4,7 @@ use crate::{
     error::KoraError,
     oracle::{get_price_oracle, RetryingPriceOracle, TokenPrice},
     token::{
-        interface::TokenMint,
-        spl_token::TokenProgram,
-        spl_token_2022::{Token2022Account, Token2022Extensions, Token2022Mint, Token2022Program},
+        interface::TokenMint, spl_token::TokenProgram, spl_token_2022::Token2022Program,
         TokenInterface,
     },
     transaction::{
@@ -393,147 +391,6 @@ impl TokenUtil {
         Ok(total_lamports)
     }
 
-    /// Validate Token2022 extensions for payment instructions
-    /// This checks if any blocked extensions are present on the payment accounts
-    pub async fn validate_token2022_extensions_for_payment(
-        config: &Config,
-        rpc_client: &RpcClient,
-        source_address: &Pubkey,
-        destination_address: &Pubkey,
-        mint: &Pubkey,
-    ) -> Result<(), KoraError> {
-        let token2022_config = &config.validation.token_2022;
-
-        let token_program = Token2022Program::new();
-
-        // Get mint account data and validate mint extensions (force refresh in case extensions are added)
-        let mint_account = CacheUtil::get_account(config, rpc_client, mint, true).await?;
-        let mint_data = mint_account.data;
-
-        // Unpack the mint state with extensions
-        let mint_state = token_program.unpack_mint(mint, &mint_data)?;
-
-        let mint_with_extensions =
-            mint_state.as_any().downcast_ref::<Token2022Mint>().ok_or_else(|| {
-                KoraError::SerializationError("Failed to downcast mint state.".to_string())
-            })?;
-
-        // Check each extension type present on the mint
-        for extension_type in mint_with_extensions.get_extension_types() {
-            if token2022_config.is_mint_extension_blocked(*extension_type) {
-                return Err(KoraError::ValidationError(format!(
-                    "Blocked mint extension found on mint account {mint}",
-                )));
-            }
-        }
-
-        // Check source account extensions (force refresh in case extensions are added)
-        let source_account =
-            CacheUtil::get_account(config, rpc_client, source_address, true).await?;
-        let source_data = source_account.data;
-
-        let source_state = token_program.unpack_token_account(&source_data)?;
-
-        let source_with_extensions =
-            source_state.as_any().downcast_ref::<Token2022Account>().ok_or_else(|| {
-                KoraError::SerializationError("Failed to downcast source state.".to_string())
-            })?;
-
-        for extension_type in source_with_extensions.get_extension_types() {
-            if token2022_config.is_account_extension_blocked(*extension_type) {
-                return Err(KoraError::ValidationError(format!(
-                    "Blocked account extension found on source account {source_address}",
-                )));
-            }
-        }
-
-        // Check destination account extensions (force refresh in case extensions are added)
-        let destination_account =
-            CacheUtil::get_account(config, rpc_client, destination_address, true).await?;
-        let destination_data = destination_account.data;
-
-        let destination_state = token_program.unpack_token_account(&destination_data)?;
-
-        let destination_with_extensions =
-            destination_state.as_any().downcast_ref::<Token2022Account>().ok_or_else(|| {
-                KoraError::SerializationError("Failed to downcast destination state.".to_string())
-            })?;
-
-        for extension_type in destination_with_extensions.get_extension_types() {
-            if token2022_config.is_account_extension_blocked(*extension_type) {
-                return Err(KoraError::ValidationError(format!(
-                    "Blocked account extension found on destination account {destination_address}",
-                )));
-            }
-        }
-
-        let mint_extensions: Vec<spl_token_2022_interface::extension::ExtensionType> =
-            mint_with_extensions.get_extension_types().to_vec();
-        let source_extensions: Vec<spl_token_2022_interface::extension::ExtensionType> =
-            source_with_extensions.get_extension_types().to_vec();
-        let destination_extensions: Vec<spl_token_2022_interface::extension::ExtensionType> =
-            destination_with_extensions.get_extension_types().to_vec();
-
-        // Concatenate source and destination extensions for combined validation
-        let mut all_extensions = source_extensions;
-        all_extensions.extend(destination_extensions);
-
-        token2022_config.validate_unknown_extensions(&mint_extensions, &all_extensions).map_err(
-            |e| KoraError::ValidationError(format!("Unknown extension validation failed: {}", e)),
-        )?;
-
-        Ok(())
-    }
-
-    /// Validate Token2022 extensions for payment when destination ATA is being created.
-    /// Only validates mint and source account extensions (destination doesn't exist yet).
-    pub async fn validate_token2022_partial_for_ata_creation(
-        config: &Config,
-        rpc_client: &RpcClient,
-        source_address: &Pubkey,
-        mint: &Pubkey,
-    ) -> Result<(), KoraError> {
-        let token2022_config = &config.validation.token_2022;
-        let token_program = Token2022Program::new();
-
-        // Get mint account data and validate mint extensions
-        let mint_account = CacheUtil::get_account(config, rpc_client, mint, true).await?;
-        let mint_state = token_program.unpack_mint(mint, &mint_account.data)?;
-
-        let mint_with_extensions =
-            mint_state.as_any().downcast_ref::<Token2022Mint>().ok_or_else(|| {
-                KoraError::SerializationError("Failed to downcast mint state.".to_string())
-            })?;
-
-        for extension_type in mint_with_extensions.get_extension_types() {
-            if token2022_config.is_mint_extension_blocked(*extension_type) {
-                return Err(KoraError::ValidationError(format!(
-                    "Blocked mint extension found on mint account {mint}",
-                )));
-            }
-        }
-
-        // Check source account extensions
-        let source_account =
-            CacheUtil::get_account(config, rpc_client, source_address, true).await?;
-        let source_state = token_program.unpack_token_account(&source_account.data)?;
-
-        let source_with_extensions =
-            source_state.as_any().downcast_ref::<Token2022Account>().ok_or_else(|| {
-                KoraError::SerializationError("Failed to downcast source state.".to_string())
-            })?;
-
-        for extension_type in source_with_extensions.get_extension_types() {
-            if token2022_config.is_account_extension_blocked(*extension_type) {
-                return Err(KoraError::ValidationError(format!(
-                    "Blocked account extension found on source account {source_address}",
-                )));
-            }
-        }
-
-        Ok(())
-    }
-
     pub async fn verify_token_payment(
         config: &Config,
         transaction_resolved: &mut VersionedTransactionResolved,
@@ -553,9 +410,9 @@ impl TokenUtil {
             .unwrap_or(&vec![])
         {
             if let ParsedSPLInstructionData::SplTokenTransfer {
-                source_address,
+                source_address: _,
                 destination_address,
-                mint,
+                mint: _,
                 amount,
                 is_2022,
                 ..
@@ -582,17 +439,9 @@ impl TokenUtil {
                                     ))
                                 })?;
 
-                            // For Token2022 payments, validate that blocked extensions are not used
-                            if *is_2022 {
-                                TokenUtil::validate_token2022_extensions_for_payment(
-                                    config,
-                                    rpc_client,
-                                    source_address,
-                                    destination_address,
-                                    &mint.unwrap_or(token_state.mint()),
-                                )
-                                .await?;
-                            }
+                            // For available payment tokens, we rely on startup config validation (warnings) and
+                            // potentially other checks. We do NOT block payments here based on extensions
+                            // to align with non-blocking warning policy.
 
                             (token_state.owner(), token_state.mint())
                         }
@@ -606,17 +455,6 @@ impl TokenUtil {
                                         destination_address,
                                     )
                                 {
-                                    // For Token2022, validate mint and source extensions
-                                    if *is_2022 {
-                                        TokenUtil::validate_token2022_partial_for_ata_creation(
-                                            config,
-                                            rpc_client,
-                                            source_address,
-                                            &ata_mint,
-                                        )
-                                        .await?;
-                                    }
-
                                     (wallet_owner, ata_mint)
                                 } else {
                                     // No ATA creation instruction found and destination doesn't exist
@@ -664,15 +502,11 @@ impl TokenUtil {
         Ok(total_lamport_value >= required_lamports)
     }
 }
-
 #[cfg(test)]
 mod tests_token {
     use crate::{
         oracle::utils::{USDC_DEVNET_MINT, WSOL_DEVNET_MINT},
-        tests::{
-            common::{RpcMockBuilder, TokenAccountMockBuilder},
-            config_mock::ConfigMockBuilder,
-        },
+        tests::{common::RpcMockBuilder, config_mock::ConfigMockBuilder},
     };
 
     use super::*;
@@ -1044,59 +878,6 @@ mod tests_token {
                 "Failed for {description}: lamports={lamports}, expected={expected}, got={result}",
             );
         }
-    }
-
-    #[tokio::test]
-    async fn test_validate_token2022_extensions_for_payment_rpc_error() {
-        let _lock = ConfigMockBuilder::new().build_and_setup();
-
-        let source_address = Pubkey::new_unique();
-        let destination_address = Pubkey::new_unique();
-        let mint_address = Pubkey::new_unique();
-
-        let rpc_client = RpcMockBuilder::new().with_account_not_found().build();
-
-        let config = get_config().unwrap();
-        let result = TokenUtil::validate_token2022_extensions_for_payment(
-            &config,
-            &rpc_client,
-            &source_address,
-            &destination_address,
-            &mint_address,
-        )
-        .await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_validate_token2022_extensions_for_payment_no_mint_provided() {
-        let _lock = ConfigMockBuilder::new().build_and_setup();
-
-        let source_address = Pubkey::new_unique();
-        let destination_address = Pubkey::new_unique();
-        let mint_address = Pubkey::new_unique();
-
-        // Create accounts without any blocked extensions - test source account first
-        let source_account = TokenAccountMockBuilder::new().build_token2022();
-
-        let rpc_client = RpcMockBuilder::new().with_account_info(&source_account).build();
-
-        // Test with None mint (should only check account extensions but will fail on dest account lookup)
-        let config = get_config().unwrap();
-        let result = TokenUtil::validate_token2022_extensions_for_payment(
-            &config,
-            &rpc_client,
-            &source_address,
-            &destination_address,
-            &mint_address,
-        )
-        .await;
-
-        // This will fail on destination lookup, but validates source account extension logic
-        assert!(result.is_err());
-        let error_msg = result.unwrap_err().to_string();
-        assert!(!error_msg.contains("Blocked account extension found on source account"));
     }
 
     #[test]

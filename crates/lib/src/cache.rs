@@ -33,7 +33,6 @@ impl CacheUtil {
     pub async fn init() -> Result<(), KoraError> {
         let config = get_config()?;
 
-        #[allow(clippy::needless_borrow)]
         let pool = if CacheUtil::is_cache_enabled(&config) {
             let redis_url = config.kora.cache.url.as_ref().ok_or(KoraError::ConfigError)?;
 

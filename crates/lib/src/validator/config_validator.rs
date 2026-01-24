@@ -33,7 +33,7 @@ impl ConfigValidator {
         rpc_client: &RpcClient,
         allowed_tokens: &[String],
         warnings: &mut Vec<String>,
-        errors: &mut Vec<String>,
+        _errors: &mut Vec<String>,
     ) {
         for token_str in allowed_tokens {
             let token_pubkey = match Pubkey::from_str(token_str) {
@@ -82,14 +82,29 @@ impl ConfigValidator {
                 ));
             }
 
+            // NonTransferable - having this extension may block transfers originating from certain accounts.
+            // This is a risk for payment mints because tokens may become non-transferable unexpectedly.
             if mint_with_extensions
                 .get_extension::<spl_token_2022_interface::extension::non_transferable::NonTransferable>()
                 .is_ok()
             {
-                errors.push(format!(
-                    "SECURITY: Token {} has NonTransferable extension. \
-                    Risk: This token cannot be transferred and is unsuitable for payments. \
-                    Remove this token from allowed_tokens.",
+                warnings.push(format!(
+                    "⚠️  SECURITY: Token {} has NonTransferable extension. \
+                    Risk: Tokens may be frozen from transferring from certain accounts, which can break payment flows. \
+                    This is a warning and will NOT block startup. Consider removing the token from allowed_tokens or blocking this extension in [validation.token2022].",
+                    token_str
+                ));
+            }
+
+            // Pausable - runtime pausing of transfers is a centralized control that may freeze payments.
+            if mint_with_extensions
+                .get_extension::<spl_token_2022_interface::extension::pausable::PausableConfig>()
+                .is_ok()
+            {
+                warnings.push(format!(
+                    "⚠️  SECURITY: Token {} has Pausable extension. \
+                    Risk: Transfers can be paused by the token authority which may freeze payments. \
+                    This is a warning and will NOT block startup. Consider removing the token from allowed_tokens or blocking this extension in [validation.token2022].",
                     token_str
                 ));
             }
