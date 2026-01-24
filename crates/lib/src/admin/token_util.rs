@@ -97,6 +97,7 @@ pub async fn initialize_atas_with_chunk_size(
     for address in addresses_to_initialize_atas {
         println!("Initializing ATAs for address: {address}");
 
+        #[allow(clippy::needless_borrow)]
         let atas_to_create = find_missing_atas(&config, rpc_client, address).await?;
 
         if atas_to_create.is_empty() {

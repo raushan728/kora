@@ -124,7 +124,7 @@ impl SignerPool {
         match self.strategy {
             SelectionStrategy::RoundRobin => {
                 let idx = self.current_index.fetch_add(1, Ordering::Relaxed).wrapping_add(0);
-                (idx % len) as usize
+                idx % len
             }
             SelectionStrategy::Random => {
                 let mut rng = rand::rng();
