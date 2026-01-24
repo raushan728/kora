@@ -3,6 +3,12 @@ use redis::AsyncCommands;
 
 use crate::config::UsageLimitConfig;
 
+/// CacheValidator tests connection to Redis used for usage-limiting.
+/// Note: in local development and test fixtures we commonly bind a test Redis
+/// instance to port 54321 (redis://127.0.0.1:54321) to avoid clashing with
+/// a local development Redis at the standard port. If you run the test
+/// harness manually, ensure the test Redis is available at that port or
+/// update the test config accordingly.
 pub struct CacheValidator {}
 
 impl CacheValidator {
