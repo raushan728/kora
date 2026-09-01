@@ -26,6 +26,67 @@ use crate::{
 
 pub use crate::usage_limit::{UsageLimitConfig, UsageLimitRuleConfig};
 
+/// Validates a CORS origin string
+pub fn is_valid_cors_origin(origin: &str) -> bool {
+    if origin == "*" {
+        return true;
+    }
+
+    let rest = if let Some(stripped) = origin.strip_prefix("https://") {
+        stripped
+    } else if let Some(stripped) = origin.strip_prefix("http://") {
+        stripped
+    } else {
+        return false;
+    };
+
+    if rest.is_empty() {
+        return false;
+    }
+
+    if rest.contains('/') || rest.contains('?') || rest.contains('#') || rest.contains('@') {
+        return false;
+    }
+
+    let (host_str, colon_idx) = if rest.starts_with('[') {
+        if let Some(close_bracket) = rest.find(']') {
+            let host = &rest[1..close_bracket];
+            let after_bracket = &rest[close_bracket + 1..];
+            let idx = if after_bracket.is_empty() {
+                None
+            } else if after_bracket.starts_with(':') {
+                Some(close_bracket + 1)
+            } else {
+                return false; // Malformed IPv6 (garbage after closing bracket)
+            };
+            (host, idx)
+        } else {
+            return false;
+        }
+    } else {
+        let idx = rest.rfind(':');
+        let host = if let Some(i) = idx { &rest[..i] } else { rest };
+        (host, idx)
+    };
+
+    if host_str.is_empty() {
+        return false;
+    }
+
+    if let Some(idx) = colon_idx {
+        let port_str = &rest[idx + 1..];
+        if port_str.is_empty() || port_str.parse::<u16>().is_err() {
+            return false;
+        }
+
+        if !rest.starts_with('[') && rest[..idx].contains(':') {
+            return false;
+        }
+    }
+
+    true
+}
+
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -714,6 +775,7 @@ pub struct PluginsConfig {
 #[serde(default, deny_unknown_fields)]
 pub struct KoraConfig {
     pub rate_limit: u64,
+    pub cors_allow_origins: Vec<String>,
     pub max_request_body_size: usize,
     pub enabled_methods: EnabledMethods,
     pub auth: AuthConfig,
@@ -740,6 +802,7 @@ impl Default for KoraConfig {
     fn default() -> Self {
         Self {
             rate_limit: 100,
+            cors_allow_origins: vec!["*".to_string()],
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             enabled_methods: EnabledMethods::default(),
             auth: AuthConfig::default(),
