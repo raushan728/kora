@@ -1,8 +1,10 @@
+use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 use spl_token_2022_interface::extension::ExtensionType;
 use std::{fs, path::Path, str::FromStr};
 use toml;
+use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
@@ -26,65 +28,76 @@ use crate::{
 
 pub use crate::usage_limit::{UsageLimitConfig, UsageLimitRuleConfig};
 
-/// Validates a CORS origin string
+pub const CORS_WILDCARD: &str = "*";
+
+/// Validates a CORS origin `scheme://host[:port]` without path, query, fragment, or trailing slash.
 pub fn is_valid_cors_origin(origin: &str) -> bool {
-    if origin == "*" {
+    if origin == CORS_WILDCARD {
         return true;
     }
 
-    let rest = if let Some(stripped) = origin.strip_prefix("https://") {
-        stripped
-    } else if let Some(stripped) = origin.strip_prefix("http://") {
-        stripped
-    } else {
-        return false;
+    let url = match Url::parse(origin) {
+        Ok(u) => u,
+        Err(_) => return false,
     };
 
-    if rest.is_empty() {
+    if url.scheme() != "http" && url.scheme() != "https" {
         return false;
     }
 
-    if rest.contains('/') || rest.contains('?') || rest.contains('#') || rest.contains('@') {
+    if url.path() != "" && url.path() != "/" {
         return false;
     }
 
-    let (host_str, colon_idx) = if rest.starts_with('[') {
-        if let Some(close_bracket) = rest.find(']') {
-            let host = &rest[1..close_bracket];
-            let after_bracket = &rest[close_bracket + 1..];
-            let idx = if after_bracket.is_empty() {
-                None
-            } else if after_bracket.starts_with(':') {
-                Some(close_bracket + 1)
-            } else {
-                return false; // Malformed IPv6 (garbage after closing bracket)
-            };
-            (host, idx)
-        } else {
-            return false;
+    if url.query().is_some() || url.fragment().is_some() {
+        return false;
+    }
+
+    if !url.username().is_empty() || url.password().is_some() {
+        return false;
+    }
+
+    // A valid origin per Fetch spec exactly matches its ascii_serialization.
+    origin == url.origin().ascii_serialization()
+}
+
+pub enum CorsOriginsClassification {
+    Empty,
+    Wildcard { has_redundant: bool },
+    AllInvalid { invalid_origins: Vec<String> },
+    ValidWithSomeInvalid { valid_origins: Vec<HeaderValue>, invalid_origins: Vec<String> },
+    AllValid { valid_origins: Vec<HeaderValue> },
+}
+
+pub fn classify_cors_origins(origins: &[String]) -> CorsOriginsClassification {
+    if origins.is_empty() {
+        return CorsOriginsClassification::Empty;
+    }
+
+    if origins.iter().any(|o| o == CORS_WILDCARD) {
+        return CorsOriginsClassification::Wildcard { has_redundant: origins.len() > 1 };
+    }
+
+    let mut valid_origins = Vec::new();
+    let mut invalid_origins = Vec::new();
+
+    for o in origins {
+        if is_valid_cors_origin(o) {
+            if let Ok(hv) = o.parse::<HeaderValue>() {
+                valid_origins.push(hv);
+                continue;
+            }
         }
+        invalid_origins.push(o.clone());
+    }
+
+    if valid_origins.is_empty() {
+        CorsOriginsClassification::AllInvalid { invalid_origins }
+    } else if !invalid_origins.is_empty() {
+        CorsOriginsClassification::ValidWithSomeInvalid { valid_origins, invalid_origins }
     } else {
-        let idx = rest.rfind(':');
-        let host = if let Some(i) = idx { &rest[..i] } else { rest };
-        (host, idx)
-    };
-
-    if host_str.is_empty() {
-        return false;
+        CorsOriginsClassification::AllValid { valid_origins }
     }
-
-    if let Some(idx) = colon_idx {
-        let port_str = &rest[idx + 1..];
-        if port_str.is_empty() || port_str.parse::<u16>().is_err() {
-            return false;
-        }
-
-        if !rest.starts_with('[') && rest[..idx].contains(':') {
-            return false;
-        }
-    }
-
-    true
 }
 
 #[derive(Clone, Deserialize)]
@@ -802,7 +815,7 @@ impl Default for KoraConfig {
     fn default() -> Self {
         Self {
             rate_limit: 100,
-            cors_allow_origins: vec!["*".to_string()],
+            cors_allow_origins: vec![CORS_WILDCARD.to_string()],
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             enabled_methods: EnabledMethods::default(),
             auth: AuthConfig::default(),
@@ -975,6 +988,52 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn test_is_valid_cors_origin_table() {
+        let cases = vec![
+            // Wildcard
+            ("*", true),
+            // Valid IPv4/Hostnames
+            ("https://example.com", true),
+            ("http://example.com", true),
+            ("https://example.com:8080", true),
+            ("https://localhost", true),
+            ("https://127.0.0.1", true),
+            // Valid IPv6
+            ("https://[::1]", true),
+            ("https://[::1]:8080", true),
+            ("https://[2001:db8::1]", true),
+            // Malformed/Empty hosts
+            ("https://", false),
+            ("https://:8080", false),
+            ("https://[]:8080", false),
+            ("https://example.com:", false),
+            // Invalid IPv6 brackets
+            ("https://[not-ipv6]", false),
+            ("https://[::1]garbage", false),
+            ("https://[::1]garbage:8080", false),
+            // Invalid ports
+            ("https://example.com:badport", false),
+            ("https://example.com:99999", false),
+            // Userinfo/Credentials
+            ("https://user@example.com", false),
+            ("https://user:pass@example.com", false),
+            // Paths, Queries, Fragments
+            ("https://example.com/", false),
+            ("https://example.com/path", false),
+            ("https://example.com?q=1", false),
+            ("https://example.com#frag", false),
+            // Other invalid schemes
+            ("ftp://example.com", false),
+            ("ws://example.com", false),
+            ("example.com", false),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(is_valid_cors_origin(input), expected, "Failed on input: '{}'", input);
+        }
+    }
 
     #[test]
     fn test_load_valid_config() {

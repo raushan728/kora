@@ -1,5 +1,5 @@
 use crate::{
-    config::{is_valid_cors_origin, AuthConfig},
+    config::{classify_cors_origins, AuthConfig, CorsOriginsClassification},
     constant::{X_API_KEY, X_HMAC_SIGNATURE, X_RECAPTCHA_TOKEN, X_TIMESTAMP},
     metrics::run_metrics_server_if_required,
     rpc_server::{
@@ -110,35 +110,29 @@ fn get_value_by_priority(env_var: &str, config_value: Option<String>) -> Option<
 }
 
 fn build_allow_origin(origins: &[String]) -> AllowOrigin {
-    if origins.is_empty() {
-        log::warn!("cors_allow_origins is empty. All cross-origin requests will be blocked.");
-        AllowOrigin::list(empty::<HeaderValue>())
-    } else if origins.iter().any(|o| o == "*") {
-        if origins.len() > 1 {
-            log::warn!("CORS allow origins contains '*' alongside specific origins. The specific origins are redundant and will be silently ignored.");
+    match classify_cors_origins(origins) {
+        CorsOriginsClassification::Empty => {
+            log::warn!("cors_allow_origins is empty. All cross-origin requests will be blocked.");
+            AllowOrigin::list(empty::<HeaderValue>())
         }
-        AllowOrigin::any()
-    } else {
-        let parsed_origins: Vec<_> = origins
-            .iter()
-            .filter_map(|o| {
-                if !is_valid_cors_origin(o) {
-                    log::warn!("Invalid CORS origin '{}': Must be a valid web origin (e.g., 'https://your-app.com').", o);
-                    return None;
-                }
-                o.parse::<HeaderValue>()
-                    .map_err(|e| log::warn!("Invalid CORS origin '{}': {}", o, e))
-                    .ok()
-            })
-            .collect();
-
-        if parsed_origins.is_empty() {
-            log::warn!(
-                "cors_allow_origins contains no valid origins. All cross-origin requests will be blocked."
-            );
+        CorsOriginsClassification::Wildcard { has_redundant } => {
+            if has_redundant {
+                log::warn!("cors_allow_origins contains '*' alongside specific origin(s). The specific origin(s) are redundant and will be silently ignored.");
+            }
+            AllowOrigin::any()
         }
-
-        AllowOrigin::list(parsed_origins)
+        CorsOriginsClassification::AllInvalid { .. } => {
+            log::warn!("None of the provided origin(s) are valid. Must be a valid web origin (e.g., 'https://your-app.com').");
+            log::warn!("cors_allow_origins contains no valid origin(s). All cross-origin requests will be blocked.");
+            AllowOrigin::list(empty::<HeaderValue>())
+        }
+        CorsOriginsClassification::ValidWithSomeInvalid { valid_origins, invalid_origins } => {
+            for o in invalid_origins {
+                log::warn!("Invalid CORS origin '{}': Must be a valid web origin (e.g., 'https://your-app.com').", o);
+            }
+            AllowOrigin::list(valid_origins)
+        }
+        CorsOriginsClassification::AllValid { valid_origins } => AllowOrigin::list(valid_origins),
     }
 }
 
@@ -523,6 +517,7 @@ mod tests {
             "https://your-app.com/".to_string(),
             "https://your-app.com/path".to_string(),
             "https://your-app.com?q=1".to_string(),
+            "https://example.com#frag".to_string(),
             "https://example.com:badport".to_string(),
             "https://user:pass@example.com".to_string(),
             "https://example.com:99999".to_string(),
@@ -534,29 +529,37 @@ mod tests {
         assert!(!debug_str.contains("https://your-app.com/"));
         assert!(!debug_str.contains("https://your-app.com/path"));
         assert!(!debug_str.contains("https://your-app.com?q=1"));
+        assert!(!debug_str.contains("https://example.com#frag"));
         assert!(!debug_str.contains("https://example.com:badport"));
         assert!(!debug_str.contains("https://user:pass@example.com"));
         assert!(!debug_str.contains("https://example.com:99999"));
         assert!(debug_str.contains("[]") || debug_str.contains("List([])"));
 
         // Valid ones should be accepted
-        let valid_origins =
-            vec!["https://your-app.com".to_string(), "https://your-app.com:8080".to_string()];
+        let valid_origins = vec![
+            "https://your-app.com".to_string(),
+            "https://your-app.com:8080".to_string(),
+            "https://[::1]:8080".to_string(),
+            "https://[::1]".to_string(),
+        ];
         let allow_origin_valid = build_allow_origin(&valid_origins);
         let valid_debug_str = format!("{:?}", allow_origin_valid);
         assert!(valid_debug_str.contains("https://your-app.com"));
         assert!(valid_debug_str.contains("https://your-app.com:8080"));
+        assert!(valid_debug_str.contains("https://[::1]:8080"));
+        assert!(valid_debug_str.contains("https://[::1]"));
     }
 
     #[test]
     fn test_empty_host_rejected() {
-        // These should be rejected because the host part is empty
+        // These should be rejected because the host part is empty or malformed
         let origins = vec![
             "https://:8080".to_string(),
             "https://[]:8080".to_string(),
             "https://example.com:".to_string(),
             "https://[::1]garbage".to_string(),
             "https://[::1]garbage:8080".to_string(),
+            "https://[not-ipv6]".to_string(),
         ];
         let allow_origin = build_allow_origin(&origins);
 
@@ -566,6 +569,20 @@ mod tests {
         assert!(!debug_str.contains("https://example.com:"));
         assert!(!debug_str.contains("https://[::1]garbage"));
         assert!(!debug_str.contains("https://[::1]garbage:8080"));
+        assert!(!debug_str.contains("https://[not-ipv6]"));
         assert!(debug_str.contains("[]") || debug_str.contains("List([])"));
+    }
+
+    #[test]
+    fn test_cors_wildcard_handling() {
+        let wildcard_only = vec!["*".to_string()];
+        let allow_origin = build_allow_origin(&wildcard_only);
+        let debug_str = format!("{:?}", allow_origin);
+        assert!(debug_str.contains(r#"Const("*")"#));
+
+        let mixed = vec!["*".to_string(), "https://example.com".to_string()];
+        let allow_origin_mixed = build_allow_origin(&mixed);
+        let mixed_debug_str = format!("{:?}", allow_origin_mixed);
+        assert!(mixed_debug_str.contains(r#"Const("*")"#));
     }
 }
