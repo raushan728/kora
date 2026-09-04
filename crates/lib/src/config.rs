@@ -992,8 +992,7 @@ mod tests {
     #[test]
     fn test_is_valid_cors_origin_table() {
         let cases = vec![
-            // Wildcard
-            ("*", true),
+            (CORS_WILDCARD, true),
             // Valid IPv4/Hostnames
             ("https://example.com", true),
             ("http://example.com", true),

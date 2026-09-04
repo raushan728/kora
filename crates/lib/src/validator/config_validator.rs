@@ -440,8 +440,7 @@ impl ConfigValidator {
                 }
             }
             CorsOriginsClassification::AllInvalid { .. } => {
-                warnings.push("None of the provided origin(s) are valid. Must be a valid web origin (e.g., 'https://your-app.com').".to_string());
-                warnings.push("cors_allow_origins contains no valid origin(s) - all cross-origin requests will be blocked".to_string());
+                warnings.push("cors_allow_origins contains no valid origin(s) (must be e.g., 'https://your-app.com') - all cross-origin requests will be blocked".to_string());
             }
             CorsOriginsClassification::ValidWithSomeInvalid { invalid_origins, .. } => {
                 warnings.push(format!("cors_allow_origins contains {} invalid origin(s) that will be silently filtered out at runtime", invalid_origins.len()));
@@ -973,7 +972,7 @@ mod tests {
             KoraConfig, LighthouseConfig, MetricsConfig, NonceInstructionPolicy, PluginsConfig,
             ProgramsConfig, SplTokenConfig, SplTokenInstructionPolicy, SystemInstructionPolicy,
             Token2022InstructionPolicy, TransactionPluginType, TransferHookPolicy,
-            UsageLimitConfig, ValidationConfig,
+            UsageLimitConfig, ValidationConfig, CORS_WILDCARD,
         },
         constant::{DEFAULT_MAX_REQUEST_BODY_SIZE, LIGHTHOUSE_PROGRAM_ID},
         fee::price::PriceConfig,
@@ -1460,7 +1459,7 @@ mod tests {
         // Test wildcard with redundant specific origin(s)
         let mut config_cors_wildcard = config.clone();
         config_cors_wildcard.kora.cors_allow_origins =
-            vec!["*".to_string(), "https://redundant.com".to_string()];
+            vec![CORS_WILDCARD.to_string(), "https://redundant.com".to_string()];
         let _ = update_config(config_cors_wildcard);
 
         let result_cors_wildcard = ConfigValidator::validate_with_result(&rpc_client, true).await;
@@ -1485,11 +1484,7 @@ mod tests {
         let warnings_cors_all_invalid = result_cors_all_invalid.unwrap();
         assert!(warnings_cors_all_invalid
             .iter()
-            .any(|w| w
-                .contains("None of the provided origin(s) are valid. Must be a valid web origin")));
-        assert!(warnings_cors_all_invalid
-            .iter()
-            .any(|w| w.contains("cors_allow_origins contains no valid origin(s) - all cross-origin requests will be blocked")));
+            .any(|w| w.contains("cors_allow_origins contains no valid origin(s) (must be e.g., 'https://your-app.com') - all cross-origin requests will be blocked")));
     }
 
     #[tokio::test]

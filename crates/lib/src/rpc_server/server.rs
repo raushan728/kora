@@ -122,8 +122,7 @@ fn build_allow_origin(origins: &[String]) -> AllowOrigin {
             AllowOrigin::any()
         }
         CorsOriginsClassification::AllInvalid { .. } => {
-            log::warn!("None of the provided origin(s) are valid. Must be a valid web origin (e.g., 'https://your-app.com').");
-            log::warn!("cors_allow_origins contains no valid origin(s). All cross-origin requests will be blocked.");
+            log::warn!("cors_allow_origins contains no valid origin(s) (must be e.g., 'https://your-app.com'). All cross-origin requests will be blocked.");
             AllowOrigin::list(empty::<HeaderValue>())
         }
         CorsOriginsClassification::ValidWithSomeInvalid { valid_origins, invalid_origins } => {
@@ -335,7 +334,7 @@ fn build_rpc_module(rpc: KoraRpc) -> Result<RpcModule<KoraRpc>, anyhow::Error> {
 mod tests {
     use super::*;
     use crate::{
-        config::EnabledMethods,
+        config::{EnabledMethods, CORS_WILDCARD},
         tests::{
             common::setup_or_get_test_signer,
             config_mock::{ConfigMockBuilder, KoraConfigBuilder},
@@ -575,12 +574,12 @@ mod tests {
 
     #[test]
     fn test_cors_wildcard_handling() {
-        let wildcard_only = vec!["*".to_string()];
+        let wildcard_only = vec![CORS_WILDCARD.to_string()];
         let allow_origin = build_allow_origin(&wildcard_only);
         let debug_str = format!("{:?}", allow_origin);
         assert!(debug_str.contains(r#"Const("*")"#));
 
-        let mixed = vec!["*".to_string(), "https://example.com".to_string()];
+        let mixed = vec![CORS_WILDCARD.to_string(), "https://example.com".to_string()];
         let allow_origin_mixed = build_allow_origin(&mixed);
         let mixed_debug_str = format!("{:?}", allow_origin_mixed);
         assert!(mixed_debug_str.contains(r#"Const("*")"#));
