@@ -63,8 +63,8 @@ pub fn is_valid_cors_origin(origin: &str) -> bool {
 
 pub enum CorsOriginsClassification {
     Empty,
+    AllInvalid,
     Wildcard { has_redundant: bool },
-    AllInvalid { invalid_origins: Vec<String> },
     ValidWithSomeInvalid { valid_origins: Vec<HeaderValue>, invalid_origins: Vec<String> },
     AllValid { valid_origins: Vec<HeaderValue> },
 }
@@ -92,7 +92,7 @@ pub fn classify_cors_origins(origins: &[String]) -> CorsOriginsClassification {
     }
 
     if valid_origins.is_empty() {
-        CorsOriginsClassification::AllInvalid { invalid_origins }
+        CorsOriginsClassification::AllInvalid
     } else if !invalid_origins.is_empty() {
         CorsOriginsClassification::ValidWithSomeInvalid { valid_origins, invalid_origins }
     } else {

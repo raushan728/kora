@@ -121,7 +121,7 @@ fn build_allow_origin(origins: &[String]) -> AllowOrigin {
             }
             AllowOrigin::any()
         }
-        CorsOriginsClassification::AllInvalid { .. } => {
+        CorsOriginsClassification::AllInvalid => {
             log::warn!("cors_allow_origins contains no valid origin(s) (must be e.g., 'https://your-app.com'). All cross-origin requests will be blocked.");
             AllowOrigin::list(empty::<HeaderValue>())
         }

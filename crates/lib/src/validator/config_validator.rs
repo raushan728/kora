@@ -439,7 +439,7 @@ impl ConfigValidator {
                     warnings.push("cors_allow_origins contains '*' alongside specific origin(s). The specific origin(s) are redundant and will be silently ignored.".to_string());
                 }
             }
-            CorsOriginsClassification::AllInvalid { .. } => {
+            CorsOriginsClassification::AllInvalid => {
                 warnings.push("cors_allow_origins contains no valid origin(s) (must be e.g., 'https://your-app.com') - all cross-origin requests will be blocked".to_string());
             }
             CorsOriginsClassification::ValidWithSomeInvalid { invalid_origins, .. } => {
